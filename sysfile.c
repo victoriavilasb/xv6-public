@@ -442,3 +442,15 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+
+int
+sys_set_tickets(void)
+{
+  int tickets;
+
+  if(argint(0, &tickets) < 0)
+    return -1;
+
+  myproc()->tickets = tickets;
+  return 0;
+}

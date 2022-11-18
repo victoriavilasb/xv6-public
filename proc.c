@@ -14,11 +14,16 @@ struct {
 
 static struct proc *initproc;
 
+// for lottery scheduler we need to generate random numbers
+static unsigned long int next = 1;
+
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+static int rand(void);
+// static void srand(unsigned int seed);
 
 void
 pinit(void)
@@ -109,6 +114,7 @@ found:
 
   sp -= sizeof *p->context;
   p->context = (struct context*)sp;
+  p->tickets = 1;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
@@ -149,6 +155,7 @@ userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
+  p->tickets = 1;
 
   release(&ptable.lock);
 }
@@ -189,6 +196,7 @@ fork(void)
     return -1;
   }
 
+
   // Copy process state from proc.
   if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
     kfree(np->kstack);
@@ -199,6 +207,7 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+  np->tickets = curproc->tickets;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -215,6 +224,10 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+
+  // each process receive at least one ticket
+  // when starts to execute the process can claim for more tickets
+  np->tickets = curproc->tickets;
 
   release(&ptable.lock);
 
@@ -263,6 +276,7 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+
   sched();
   panic("zombie exit");
 }
@@ -320,7 +334,7 @@ wait(void)
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
 void
-scheduler(void)
+rr_scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
@@ -332,6 +346,7 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
@@ -343,12 +358,85 @@ scheduler(void)
       switchuvm(p);
       p->state = RUNNING;
 
+      // When we call swtch we start to run in a different 
+      // kernel stack, the new process kernel stack, in a complete different context
+      // this process may do something like return from trap, and start executing
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
+    }
+    release(&ptable.lock);
+
+  }
+}
+
+int
+fetch_total_running_process() {
+  int total_tickets = 0;
+  struct proc *p;
+  
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == RUNNABLE)
+      total_tickets += p->tickets;
+  }
+
+  return total_tickets;
+}
+
+int
+fetch_random_in_interval(int interval) {
+  return rand() % (interval + 1);
+}
+
+void
+scheduler(void)
+{  
+  struct proc *p = ptable.proc;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+
+  int tacc = 1;
+  int winner;
+  int total_tickets = 0;
+
+  for(;;) {
+    // Enable interrupts on this processor.
+    sti();
+
+    // Check all runnable process to find total tickets
+    total_tickets = fetch_total_running_process();
+
+    winner = fetch_random_in_interval(total_tickets);
+
+    tacc = 0;
+
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+      if (p->state != RUNNABLE)
+        continue;
+
+      tacc += p->tickets;
+      if (tacc < winner) {
+        continue;
+      }
+
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+
+      // When we call swtch we start to run in a different 
+      // kernel stack, the new process kernel stack, in a complete different context
+      // this process may do something like return from trap, and start executing
+      swtch(&(c->scheduler), p->context);
+      switchkvm();
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+      break;
     }
     release(&ptable.lock);
 
@@ -400,10 +488,12 @@ forkret(void)
   // Still holding ptable.lock from scheduler.
   release(&ptable.lock);
 
+
   if (first) {
     // Some initialization functions must be run in the context
     // of a regular process (e.g., they call sleep), and thus cannot
     // be run from main().
+
     first = 0;
     iinit(ROOTDEV);
     initlog(ROOTDEV);
@@ -460,8 +550,11 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
+    }
+      
+
 }
 
 // Wake up all processes sleeping on chan.
@@ -488,6 +581,7 @@ kill(int pid)
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
         p->state = RUNNABLE;
+
       release(&ptable.lock);
       return 0;
     }
@@ -531,4 +625,16 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+
+void srand(unsigned int seed)
+{
+  next = seed;
+}
+
+int rand(void) // RAND_MAX assumed to be 32767
+{
+  next = next * 1103515245 + 12345;
+  return (unsigned int)(next/65536) % 32768;
 }
