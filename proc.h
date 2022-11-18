@@ -8,7 +8,6 @@ struct cpu {
   int ncli;                    // Depth of pushcli nesting.
   int intena;                  // Were interrupts enabled before pushcli?
   struct proc *proc;           // The process running on this cpu or null
-  uint ticks;                  // Total clock ticks
 };
 
 extern struct cpu cpus[NCPU];
@@ -55,7 +54,6 @@ struct proc {
   int stime;                   // Sleeping time
   int retime;                  // Total amount of time a process was RUNNABLE (or ready)
   int rutime;                  // Total amount of time a process was in RUNNING state
-  uint last_state_change_tick; // Stores the cpu tick that a process was when the last state change occurred  
 };
 
 // Process memory is laid out contiguously, low addresses first:

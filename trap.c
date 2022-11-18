@@ -48,7 +48,6 @@ trap(struct trapframe *tf)
 
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
-    mycpu()->ticks = ticks;
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
@@ -108,9 +107,8 @@ trap(struct trapframe *tf)
   if(myproc() && myproc()->state == RUNNING &&
      tf->trapno == T_IRQ0+IRQ_TIMER) {
 
-    // rutime
     myproc()->rutime += 1;
-    
+
     if (ticks % INTERV == 0) { // always interrupted after n tickets
       yield();
       // cprintf("process name %s\n", myproc()->name);

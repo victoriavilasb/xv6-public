@@ -23,7 +23,9 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 static int rand(void);
-// static void srand(unsigned int seed);
+static int fetch_total_running_process(void);
+static int fetch_random_in_interval(int);
+void process_state_change(struct proc *p);
 
 void
 pinit(void)
@@ -93,7 +95,10 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  p->ctime = mycpu()->ticks;
+  p->retime = 0;
+  p->rutime = 0;
+  p->state = 0;
+  p->ctime = ticks;
 
   release(&ptable.lock);
 
@@ -277,6 +282,7 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+  process_state_change(curproc, 0);
 
   sched();
   panic("zombie exit");
@@ -356,13 +362,14 @@ rr_scheduler(void)
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       c->proc = p;
+
       switchuvm(p);
       p->state = RUNNING;
-
       // When we call swtch we start to run in a different 
       // kernel stack, the new process kernel stack, in a complete different context
       // this process may do something like return from trap, and start executing
       swtch(&(c->scheduler), p->context);
+
       switchkvm();
 
       // Process is done running for now.
@@ -374,26 +381,8 @@ rr_scheduler(void)
   }
 }
 
-int
-fetch_total_running_process() {
-  int total_tickets = 0;
-  struct proc *p;
-  
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state == RUNNABLE)
-      total_tickets += p->tickets;
-  }
-
-  return total_tickets;
-}
-
-int
-fetch_random_in_interval(int interval) {
-  return rand() % (interval + 1);
-}
-
 void
-scheduler(void)
+lottery_scheduler(void)
 {  
   struct proc *p = ptable.proc;
   struct cpu *c = mycpu();
@@ -456,7 +445,7 @@ sched(void)
 {
   int intena;
   struct proc *p = myproc();
-
+  
   if(!holding(&ptable.lock))
     panic("sched ptable.lock");
   if(mycpu()->ncli != 1)
@@ -465,6 +454,7 @@ sched(void)
     panic("sched running");
   if(readeflags()&FL_IF)
     panic("sched interruptible");
+
   intena = mycpu()->intena;
   swtch(&p->context, mycpu()->scheduler);
   mycpu()->intena = intena;
@@ -476,6 +466,7 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   myproc()->state = RUNNABLE;
+  process_state_change(myproc());
   sched();
   release(&ptable.lock);
 }
@@ -529,6 +520,7 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
+  process_state_change(p);
 
   sched();
 
@@ -553,6 +545,7 @@ wakeup1(void *chan)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
+      process_state_change(p);
     }
       
 
@@ -580,8 +573,10 @@ kill(int pid)
     if(p->pid == pid){
       p->killed = 1;
       // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
+      if(p->state == SLEEPING) {
         p->state = RUNNABLE;
+        process_state_change(p);
+      }
 
       release(&ptable.lock);
       return 0;
@@ -628,14 +623,53 @@ procdump(void)
   }
 }
 
-
-void srand(unsigned int seed)
+void
+srand(unsigned int seed)
 {
   next = seed;
 }
 
-int rand(void) // RAND_MAX assumed to be 32767
+int
+rand(void) // RAND_MAX assumed to be 32767
 {
   next = next * 1103515245 + 12345;
   return (unsigned int)(next/65536) % 32768;
+}
+
+int
+fetch_total_running_process(void) {
+  int total_tickets = 0;
+  struct proc *p;
+  
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == RUNNABLE)
+      total_tickets += p->tickets;
+  }
+
+  return total_tickets;
+}
+
+int
+fetch_random_in_interval(int interval) {
+  return rand() % (interval + 1);
+}
+
+void
+process_state_change(struct proc *p)
+{
+  switch (p->state)
+  {
+  case SLEEPING:
+    p->stime += 1;
+    break;
+  case RUNNABLE:
+    p->retime += 1;
+    break;
+  case ZOMBIE:
+    cprintf(
+      "process %s: START [%d]; SLEEPING [%d]; RUNNABLE [%d]; RUNNING [%d]\n",
+      p->name, p->ctime, p->stime, p->retime, p->rutime);
+  default:
+    break;
+  }
 }
