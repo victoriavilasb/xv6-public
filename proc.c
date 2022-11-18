@@ -93,6 +93,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->ctime = mycpu()->ticks;
 
   release(&ptable.lock);
 

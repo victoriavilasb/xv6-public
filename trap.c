@@ -48,6 +48,7 @@ trap(struct trapframe *tf)
 
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
+    mycpu()->ticks = ticks;
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
@@ -106,6 +107,9 @@ trap(struct trapframe *tf)
   // If interrupts were on while locks held, would need to check nlock.
   if(myproc() && myproc()->state == RUNNING &&
      tf->trapno == T_IRQ0+IRQ_TIMER) {
+
+    // rutime
+    myproc()->rutime += 1;
     
     if (ticks % INTERV == 0) { // always interrupted after n tickets
       yield();
