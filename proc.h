@@ -34,6 +34,8 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+enum proctype { CPUBOUND, IOBOUND };
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -50,6 +52,8 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int tickets;                 // Numbers of tickets the process has
+  int last_state_change;      // Save moment of the last state change in order to calculate time in each state
+  enum proctype type;           // Process type
   uint ctime;                  // Process creation time
   int stime;                   // Sleeping time
   int retime;                  // Total amount of time a process was RUNNABLE (or ready)

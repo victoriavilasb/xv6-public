@@ -95,6 +95,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->last_state_change = 0;
   p->retime = 0;
   p->rutime = 0;
   p->state = 0;
@@ -160,6 +161,7 @@ userinit(void)
   // because the assignment might not be atomic.
   acquire(&ptable.lock);
 
+  p->last_state_change = 0;
   p->state = RUNNABLE;
   p->tickets = 1;
 
@@ -210,6 +212,7 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
+  np->retime = 0;  
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
@@ -229,6 +232,10 @@ fork(void)
 
   acquire(&ptable.lock);
 
+  np->last_state_change = 0;
+  np->rutime = 0;
+  np->stime = 0;
+  np->retime = 0;
   np->state = RUNNABLE;
 
   // each process receive at least one ticket
@@ -281,8 +288,8 @@ exit(void)
   }
 
   // Jump into the scheduler, never to return.
+  cprintf("ctime = %d, rutime %d, retime %d, stime %d\n", curproc->ctime, curproc->rutime, curproc->retime, curproc->stime);
   curproc->state = ZOMBIE;
-  process_state_change(curproc, 0);
 
   sched();
   panic("zombie exit");
@@ -364,6 +371,7 @@ rr_scheduler(void)
       c->proc = p;
 
       switchuvm(p);
+      process_state_change(p);
       p->state = RUNNING;
       // When we call swtch we start to run in a different 
       // kernel stack, the new process kernel stack, in a complete different context
@@ -415,6 +423,7 @@ lottery_scheduler(void)
 
       c->proc = p;
       switchuvm(p);
+      process_state_change(p);
       p->state = RUNNING;
 
       // When we call swtch we start to run in a different 
@@ -465,8 +474,8 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  myproc()->state = RUNNABLE;
   process_state_change(myproc());
+  myproc()->state = RUNNABLE;
   sched();
   release(&ptable.lock);
 }
@@ -519,8 +528,8 @@ sleep(void *chan, struct spinlock *lk)
   }
   // Go to sleep.
   p->chan = chan;
-  p->state = SLEEPING;
   process_state_change(p);
+  p->state = SLEEPING;
 
   sched();
 
@@ -544,10 +553,9 @@ wakeup1(void *chan)
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan) {
-      p->state = RUNNABLE;
       process_state_change(p);
+      p->state = RUNNABLE;
     }
-      
 
 }
 
@@ -574,8 +582,8 @@ kill(int pid)
       p->killed = 1;
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING) {
-        p->state = RUNNABLE;
         process_state_change(p);
+        p->state = RUNNABLE;
       }
 
       release(&ptable.lock);
@@ -657,18 +665,33 @@ fetch_random_in_interval(int interval) {
 void
 process_state_change(struct proc *p)
 {
+  // STEPS
+  // 1: Calculate ticks in state
+  //    Ex.: last_state_change: 24; ticks: 30; old_state: SLEEPING
+  //    stime += ticks-last_state_change
+  // 2: Save last state change
+
+  // cprintf("ticks %d; last state change %d\n", ticks, p->last_state_change);
+  int total;
+
   switch (p->state)
   {
   case SLEEPING:
-    p->stime += 1;
+    p->stime += ticks-p->last_state_change;
+    p->last_state_change = ticks;
+
     break;
   case RUNNABLE:
-    p->retime += 1;
+    total = ticks - p->last_state_change;
+    p->retime += total;
+    p->last_state_change = ticks;
+
     break;
-  case ZOMBIE:
-    cprintf(
-      "process %s: START [%d]; SLEEPING [%d]; RUNNABLE [%d]; RUNNING [%d]\n",
-      p->name, p->ctime, p->stime, p->retime, p->rutime);
+  case RUNNING:
+    p->rutime += ticks-p->last_state_change;
+    p->last_state_change = ticks;
+
+    break;
   default:
     break;
   }
