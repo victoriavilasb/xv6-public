@@ -105,6 +105,7 @@ found:
 
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){
+    process_state_change(p);
     p->state = UNUSED;
     return 0;
   }
@@ -162,6 +163,7 @@ userinit(void)
   acquire(&ptable.lock);
 
   p->last_state_change = 0;
+  process_state_change(p);
   p->state = RUNNABLE;
   p->tickets = 1;
 
@@ -209,6 +211,7 @@ fork(void)
   if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
+    process_state_change(np);
     np->state = UNUSED;
     return -1;
   }
@@ -236,6 +239,7 @@ fork(void)
   np->rutime = 0;
   np->stime = 0;
   np->retime = 0;
+  process_state_change(np);
   np->state = RUNNABLE;
 
   // each process receive at least one ticket
@@ -289,6 +293,7 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   cprintf("ctime = %d, rutime %d, retime %d, stime %d\n", curproc->ctime, curproc->rutime, curproc->retime, curproc->stime);
+  process_state_change(curproc);
   curproc->state = ZOMBIE;
 
   sched();
@@ -322,6 +327,7 @@ wait(void)
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
+        process_state_change(p);
         p->state = UNUSED;
         release(&ptable.lock);
         return pid;
@@ -678,21 +684,21 @@ process_state_change(struct proc *p)
   {
   case SLEEPING:
     p->stime += ticks-p->last_state_change;
-    p->last_state_change = ticks;
 
     break;
   case RUNNABLE:
     total = ticks - p->last_state_change;
-    p->retime += total;
-    p->last_state_change = ticks;
+    p->retime = p->retime + total;
 
     break;
   case RUNNING:
     p->rutime += ticks-p->last_state_change;
-    p->last_state_change = ticks;
 
     break;
   default:
     break;
   }
+
+  p->last_state_change = ticks;
+
 }
