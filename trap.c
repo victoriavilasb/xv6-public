@@ -14,6 +14,8 @@ extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
 
+void hold_process_based_on_type(struct proc *p);
+
 void
 tvinit(void)
 {
@@ -107,14 +109,37 @@ trap(struct trapframe *tf)
   if(myproc() && myproc()->state == RUNNING &&
      tf->trapno == T_IRQ0+IRQ_TIMER) {
 
-    if (ticks % INTERV == 0) { // always interrupted after n tickets
-      yield();
-    }
-    
+    hold_process_based_on_type(myproc());
   }
 
   // Check if the process has been killed since we yielded
   if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER) {  
     exit();
+  }
+}
+
+void 
+hold_process_based_on_type(struct proc *p) {
+  switch (p->type)
+  {
+  case CPUBOUND:
+    if (ticks % 5 == 0) // always interrupted after n tickets
+      yield();
+    break;
+
+  case IOBOUND:
+    if (ticks % 3 == 0)
+      yield();
+    break;
+
+  case SBOUND:
+    if (ticks % 4 == 0)
+      yield();
+    break;
+  
+  default:
+    if (ticks % INTERV == 0)
+      yield();
+    break;
   }
 }

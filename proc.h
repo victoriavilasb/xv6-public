@@ -7,6 +7,7 @@ struct cpu {
   volatile uint started;       // Has the CPU started?
   int ncli;                    // Depth of pushcli nesting.
   int intena;                  // Were interrupts enabled before pushcli?
+  int type_bound_sched;        // 0 means that type bound scheduler is disabled
   struct proc *proc;           // The process running on this cpu or null
 };
 
@@ -34,7 +35,7 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
-enum proctype { CPUBOUND, IOBOUND };
+enum proctype { CPUBOUND, IOBOUND, SBOUND };
 
 // Per-process state
 struct proc {
@@ -52,8 +53,8 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int tickets;                 // Numbers of tickets the process has
-  int last_state_change;      // Save moment of the last state change in order to calculate time in each state
-  enum proctype type;           // Process type
+  int last_state_change;       // Save moment of the last state change in order to calculate time in each state
+  enum proctype type;          // Process type
   uint ctime;                  // Process creation time
   int stime;                   // Sleeping time
   int retime;                  // Total amount of time a process was RUNNABLE (or ready)
