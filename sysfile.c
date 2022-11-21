@@ -499,7 +499,6 @@ int
 sys_wait2(void)
 {
   int *retime, *rutime, *stime;
-
   if(argptr(0, (void*)&retime, 2*sizeof(retime[0])) < 0)
     return -1;
 
