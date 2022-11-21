@@ -345,6 +345,16 @@ wait(void)
   }
 }
 
+void
+wait2(int* retime, int* rutime, int* stime)
+{
+  wait();
+
+  retime = &myproc()->retime;
+  rutime = &myproc()->rutime;
+  stime = &myproc()->stime;
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
