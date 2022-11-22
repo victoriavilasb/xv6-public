@@ -499,17 +499,21 @@ int
 sys_wait2(void)
 {
   int *retime, *rutime, *stime;
-  if(argptr(0, (void*)&retime, 2*sizeof(retime[0])) < 0)
+  uint *ctime;
+
+  if(argptr(0, (void*)&ctime, sizeof(*ctime)) < 0)
     return -1;
 
-  if(argptr(0, (void*)&rutime, 2*sizeof(rutime[0])) < 0)
+  if(argptr(1, (void*)&retime, sizeof(*retime)) < 0)
+    return -1;  
+
+  if(argptr(2, (void*)&rutime, sizeof(*rutime)) < 0)
     return -1;
 
-  if(argptr(0, (void*)&stime, 2*sizeof(stime[0])) < 0)
+  if(argptr(3, (void*)&stime, sizeof(*stime)) < 0)
     return -1;
 
-
-  wait2(retime, rutime, stime);
+  wait2(ctime, retime, rutime, stime);
 
   return 0;
 }

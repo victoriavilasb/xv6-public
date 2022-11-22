@@ -292,7 +292,6 @@ exit(void)
   }
 
   // Jump into the scheduler, never to return.
-  cprintf("ctime = %d, rutime %d, retime %d, stime %d\n", curproc->ctime, curproc->rutime, curproc->retime, curproc->stime);
   process_state_change(curproc);
   curproc->state = ZOMBIE;
 
@@ -346,13 +345,14 @@ wait(void)
 }
 
 void
-wait2(int* retime, int* rutime, int* stime)
+wait2(uint* ctime, int* retime, int* rutime, int* stime)
 {
-  wait();
+  (*ctime) = myproc()->ctime;
+  (*retime) = myproc()->retime;
+  (*rutime) = myproc()->rutime;
+  (*stime) = myproc()->stime;
 
-  retime = &myproc()->retime;
-  rutime = &myproc()->rutime;
-  stime = &myproc()->stime;
+  wait();
 }
 
 //PAGEBREAK: 42
