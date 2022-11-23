@@ -15,6 +15,7 @@ struct spinlock tickslock;
 uint ticks;
 
 void hold_process_based_on_type(struct proc *p);
+void sum_states_in_each_proc();
 
 void
 tvinit(void)
@@ -52,6 +53,7 @@ trap(struct trapframe *tf)
   case T_IRQ0 + IRQ_TIMER:
     if(cpuid() == 0){
       acquire(&tickslock);
+      sum_states_in_each_proc();
       ticks++;
       wakeup(&ticks);
       release(&tickslock);
@@ -143,3 +145,5 @@ hold_process_based_on_type(struct proc *p) {
     break;
   }
 }
+
+
