@@ -24,3 +24,4 @@
 #define SYS_enable_bound_sched 23
 #define SYS_set_bound_type 24
 #define SYS_wait2 25
+#define SYS_yield 26

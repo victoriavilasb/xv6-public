@@ -65,3 +65,6 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+void sum_states_in_each_proc();
+

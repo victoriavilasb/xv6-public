@@ -27,6 +27,7 @@ int set_tickets(int);
 int enable_bound_sched(int);
 int set_bound_type(int);
 int wait2(int*, int*, int*);
+int yield(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

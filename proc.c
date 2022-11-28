@@ -14,15 +14,12 @@ struct {
 
 static struct proc *initproc;
 
-// for lottery scheduler we need to generate random numbers
-static unsigned long int next = 1;
-
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
-static int rand(void);
+static int rand(int);
 static int fetch_total_running_process(void);
 static int fetch_random_in_interval(int);
 
@@ -209,7 +206,6 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
-  np->retime = 0;  
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
@@ -229,8 +225,6 @@ fork(void)
 
   acquire(&ptable.lock);
 
-  np->rutime = 0;
-  np->stime = 0;
   np->state = RUNNABLE;
 
   // each process receive at least one ticket
@@ -333,13 +327,53 @@ wait(void)
   }
 }
 
-void
+int
 wait2(int* retime, int* rutime, int* stime)
 {
-  (*retime) = myproc()->retime;
-  (*rutime) = myproc()->rutime;
-  (*stime) = myproc()->stime;
-  wait();
+  struct proc *p;
+  int havekids, pid;
+  struct proc *curproc = myproc();
+  
+  acquire(&ptable.lock);
+  for(;;){
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != curproc)
+        continue;
+      havekids = 1;
+      if(p->state == ZOMBIE){
+        // Found one.
+        *retime = p->retime;
+        *rutime = p->rutime;
+        *stime = p->stime;
+
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        p->retime = 0;
+        p->rutime = 0;
+        p->stime = 0;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || curproc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(curproc, &ptable.lock);  //DOC: wait-sleep
+  }
 }
 
 //PAGEBREAK: 42
@@ -629,17 +663,37 @@ procdump(void)
   }
 }
 
-void
-srand(unsigned int seed)
-{
-  next = seed;
-}
 
 int
-rand(void) // RAND_MAX assumed to be 32767
+rand(int max) // RAND_MAX assumed to be 32767
 {
-  next = next * 1103515245 + 12345;
-  return (unsigned int)(next/65536) % 32768;
+  if(max <= 0) {
+    return 1;
+  }
+
+  static int z1 = 12345; // 12345 for rest of zx
+  static int z2 = 12345; // 12345 for rest of zx
+  static int z3 = 12345; // 12345 for rest of zx
+  static int z4 = 12345; // 12345 for rest of zx
+
+  int b;
+  b = (((z1 << 6) ^ z1) >> 13);
+  z1 = (((z1 & 4294967294) << 18) ^ b);
+  b = (((z2 << 2) ^ z2) >> 27);
+  z2 = (((z2 & 4294967288) << 2) ^ b);
+  b = (((z3 << 13) ^ z3) >> 21);
+  z3 = (((z3 & 4294967280) << 7) ^ b);
+  b = (((z4 << 3) ^ z4) >> 12);
+  z4 = (((z4 & 4294967168) << 13) ^ b);
+
+  // if we have an argument, then we can use it
+  int rand = ((z1 ^ z2 ^ z3 ^ z4)) % max;
+
+  if(rand < 0) {
+    rand = rand * -1;
+  }
+
+  return rand;;
 }
 
 int
@@ -657,7 +711,7 @@ fetch_total_running_process(void) {
 
 int
 fetch_random_in_interval(int interval) {
-  return rand() % (interval + 1);
+  return rand(interval);  
 }
 
 void
@@ -669,9 +723,6 @@ sum_states_in_each_proc()
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
     switch (p->state)
       {
-      case RUNNING:
-        p->rutime += 1;
-        break;
       case RUNNABLE:
         p->retime += 1;
         break;
@@ -679,7 +730,7 @@ sum_states_in_each_proc()
         p->stime += 1;
         break;
       default:
-        break;
+        continue;
       }
   }
   release(&ptable.lock);
