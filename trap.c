@@ -14,6 +14,12 @@ extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
 
+struct spinlock smallerlock;
+int count_quantum_for_smaller_process = 0; // max 10
+struct spinlock greaterlock;
+int count_quantum_for_greater_process = 0; // max 2
+void choose_process_type_to_sched(void);
+
 void
 tvinit(void)
 {
@@ -48,8 +54,8 @@ trap(struct trapframe *tf)
 
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
-
-      sum_states_in_each_proc();
+    sum_states_in_each_proc();
+    choose_process_type_to_sched();
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
@@ -103,7 +109,6 @@ trap(struct trapframe *tf)
     exit();
   }
 
-
   // Force process to give up CPU on clock tick.
   // If interrupts were on while locks held, would need to check nlock.
   if(myproc() && myproc()->state == RUNNING &&
@@ -118,7 +123,29 @@ trap(struct trapframe *tf)
   if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER) {  
     exit();
   }
+
 }
 
+void
+choose_process_type_to_sched(void)
+{
+  int p = get_priority();
+
+  if (p == 0) {
+    count_quantum_for_smaller_process++;
+  } else {
+    count_quantum_for_greater_process++;
+  }
+
+  if (count_quantum_for_greater_process > 2) {
+    count_quantum_for_greater_process = 0;
+    sched_smaller_process();
+  }
+
+  if (count_quantum_for_smaller_process > 10) {
+    count_quantum_for_smaller_process = 0;
+    sched_greater_process();
+  }
+}
 
 

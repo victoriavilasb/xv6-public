@@ -113,6 +113,7 @@ struct proc*    myproc();
 void            pinit(void);
 void            procdump(void);
 void            lottery_scheduler(void) __attribute__((noreturn));
+void            custom_scheduler(void) __attribute__((noreturn));
 void            rr_scheduler(void) __attribute__((noreturn));
 void            sched(void);
 void            setproc(struct proc*);

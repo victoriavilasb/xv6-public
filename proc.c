@@ -22,6 +22,10 @@ static void wakeup1(void *chan);
 static int rand(int);
 static int fetch_total_running_process(void);
 static int fetch_random_in_interval(int);
+struct proc * choose_max(struct proc *p1, struct proc *p2);
+struct proc * choose_min(struct proc *p1, struct proc *p2); 
+struct proc * select_process_to_run();
+
 
 void
 pinit(void)
@@ -426,6 +430,43 @@ rr_scheduler(void)
 }
 
 void
+custom_scheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+  
+  for(;;){
+    // Enable interrupts on this processor.
+    sti();
+
+    acquire(&ptable.lock);
+    p = select_process_to_run();
+    release(&ptable.lock);
+    
+    if (p && p->state != RUNNABLE)
+      continue;
+
+    // Switch to chosen process.  It is the process's job
+    // to release ptable.lock and then reacquire it
+    // before jumping back to us.
+    c->proc = p;
+    switchuvm(p);
+    p->state = RUNNING;
+    // When we call swtch we start to run in a different 
+    // kernel stack, the new process kernel stack, in a complete different context
+    // this process may do something like return from trap, and start executing
+    swtch(&(c->scheduler), p->context);
+
+    switchkvm();
+
+    // Process is done running for now.
+    // It should have changed its p->state before coming back.
+    c->proc = 0;
+  }
+}
+
+void
 lottery_scheduler(void)
 {  
   struct proc *p = ptable.proc;
@@ -737,14 +778,71 @@ sum_states_in_each_proc()
 
 }
 
-void
+struct proc *
 select_process_to_run()
 {
   struct proc *p;
-  
-  acquire(&ptable.lock);
+  struct proc *chosen_process;
+
+  int prior = mycpu()->priority;
+
+  chosen_process = ptable.proc;
+  p = ptable.proc;
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-    continue;
+    // choose the first runnable process
+    if (chosen_process->state != RUNNABLE) {
+      chosen_process = p;
+      continue;
+    }
+
+    if (p->state != RUNNABLE) {
+      continue;
+    }
+
+    if (prior == 0) {
+      chosen_process = choose_min(chosen_process, p);
+    } else if (prior == 1) {
+      chosen_process = choose_max(chosen_process, p);
+    }
   }
-  release(&ptable.lock);
+
+  return chosen_process;
+}
+
+void
+sched_greater_process()
+{
+  mycpu()->priority = 1;
+}
+
+void
+sched_smaller_process()
+{
+  mycpu()->priority = 0;
+}
+
+int
+get_priority()
+{
+  return mycpu()->priority;
+}
+
+struct proc *
+choose_min(struct proc *p1, struct proc *p2) 
+{
+  if (p1->rutime <= p2->rutime) {
+    return p1;
+  }
+
+  return p2;
+}
+
+struct proc *
+choose_max(struct proc *p1, struct proc *p2) 
+{
+  if (p1->retime <= p2->retime) {
+    return p2;
+  }
+
+  return p1;
 }

@@ -7,6 +7,7 @@ struct cpu {
   volatile uint started;       // Has the CPU started?
   int ncli;                    // Depth of pushcli nesting.
   int intena;                  // Were interrupts enabled before pushcli?
+  int priority;                // If 0 is default, which means that minimum rutime run first, else max retime run first
   struct proc *proc;           // The process running on this cpu or null
 };
 
@@ -66,4 +67,6 @@ struct proc {
 //   expandable heap
 
 void sum_states_in_each_proc();
-
+void sched_greater_process();
+void sched_smaller_process();
+int get_priority();
