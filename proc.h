@@ -7,7 +7,6 @@ struct cpu {
   volatile uint started;       // Has the CPU started?
   int ncli;                    // Depth of pushcli nesting.
   int intena;                  // Were interrupts enabled before pushcli?
-  int type_bound_sched;        // 0 means that type bound scheduler is disabled
   struct proc *proc;           // The process running on this cpu or null
 };
 

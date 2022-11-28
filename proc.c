@@ -736,3 +736,25 @@ sum_states_in_each_proc()
   release(&ptable.lock);
 
 }
+
+void
+select_process_to_run()
+{
+  struct proc *p;
+  
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    switch (p->state)
+      {
+      case RUNNABLE:
+        p->retime += 1;
+        break;
+      case SLEEPING:
+        p->stime += 1;
+        break;
+      default:
+        continue;
+      }
+  }
+  release(&ptable.lock);
+}
