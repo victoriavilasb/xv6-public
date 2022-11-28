@@ -744,17 +744,7 @@ select_process_to_run()
   
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-    switch (p->state)
-      {
-      case RUNNABLE:
-        p->retime += 1;
-        break;
-      case SLEEPING:
-        p->stime += 1;
-        break;
-      default:
-        continue;
-      }
+    continue;
   }
   release(&ptable.lock);
 }
