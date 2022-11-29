@@ -442,27 +442,28 @@ custom_scheduler(void)
 
     acquire(&ptable.lock);
     p = select_process_to_run();
-    release(&ptable.lock);
     
-    if (p && p->state != RUNNABLE)
-      continue;
+    if (p != 0) {
+      
+      // Switch to chosen process.  It is the process's job
+      // to release ptable.lock and then reacquire it
+      // before jumping back to us.
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+      // When we call swtch we start to run in a different 
+      // kernel stack, the new process kernel stack, in a complete different context
+      // this process may do something like return from trap, and start executing
+      swtch(&(c->scheduler), p->context);
 
-    // Switch to chosen process.  It is the process's job
-    // to release ptable.lock and then reacquire it
-    // before jumping back to us.
-    c->proc = p;
-    switchuvm(p);
-    p->state = RUNNING;
-    // When we call swtch we start to run in a different 
-    // kernel stack, the new process kernel stack, in a complete different context
-    // this process may do something like return from trap, and start executing
-    swtch(&(c->scheduler), p->context);
+      switchkvm();
 
-    switchkvm();
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
 
-    // Process is done running for now.
-    // It should have changed its p->state before coming back.
-    c->proc = 0;
+    release(&ptable.lock);
   }
 }
 
@@ -782,31 +783,31 @@ struct proc *
 select_process_to_run()
 {
   struct proc *p;
-  struct proc *chosen_process;
+  struct proc *comp_proc;
+  struct proc *found = 0;
 
   int prior = mycpu()->priority;
 
-  chosen_process = ptable.proc;
-  p = ptable.proc;
+  comp_proc = &ptable.proc[0];
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
     // choose the first runnable process
-    if (chosen_process->state != RUNNABLE) {
-      chosen_process = p;
-      continue;
-    }
-
+    // cprintf("choosing process to run\n");
     if (p->state != RUNNABLE) {
       continue;
     }
 
+    if (comp_proc->state != RUNNABLE) {
+      comp_proc = p;
+    }
+
     if (prior == 0) {
-      chosen_process = choose_min(chosen_process, p);
+      found = choose_min(comp_proc, p);
     } else if (prior == 1) {
-      chosen_process = choose_max(chosen_process, p);
+      found = choose_max(comp_proc, p);
     }
   }
 
-  return chosen_process;
+  return found;
 }
 
 void
