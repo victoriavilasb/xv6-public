@@ -113,13 +113,14 @@ struct proc*    myproc();
 void            pinit(void);
 void            procdump(void);
 void            lottery_scheduler(void) __attribute__((noreturn));
+void            custom_scheduler(void) __attribute__((noreturn));
 void            rr_scheduler(void) __attribute__((noreturn));
 void            sched(void);
 void            setproc(struct proc*);
 void            sleep(void*, struct spinlock*);
 void            userinit(void);
 int             wait(void);
-void            wait2(int*, int*, int*);
+int             wait2(int*, int*, int*);
 void            wakeup(void*);
 void            yield(void);
 

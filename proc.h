@@ -7,7 +7,7 @@ struct cpu {
   volatile uint started;       // Has the CPU started?
   int ncli;                    // Depth of pushcli nesting.
   int intena;                  // Were interrupts enabled before pushcli?
-  int type_bound_sched;        // 0 means that type bound scheduler is disabled
+  int priority;                // If 0 is default, which means that minimum rutime run first, else max retime run first
   struct proc *proc;           // The process running on this cpu or null
 };
 
@@ -53,7 +53,6 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int tickets;                 // Numbers of tickets the process has
-  int last_state_change;       // Save moment of the last state change in order to calculate time in each state
   enum proctype type;          // Process type
   uint ctime;                  // Process creation time
   int stime;                   // Sleeping time
@@ -66,3 +65,8 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+void sum_states_in_each_proc();
+void sched_greater_process();
+void sched_smaller_process();
+int get_priority();

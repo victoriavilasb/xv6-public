@@ -456,61 +456,18 @@ sys_set_tickets(void)
 }
 
 int
-sys_enable_bound_sched(void)
-{
-  int enabled;
-  argint(0, &enabled);
-
-  if(enabled < 0 || enabled > 1)
-    return -1;
-  else if (enabled == 1)
-  {
-    mycpu()->type_bound_sched = 1;
-  }
-
-  return 0;
-}
-
-int
-sys_set_bound_type(void)
-{
-  int type;
-  argint(0, &type);
-
-  if(type < 1 || type > 3)
-    return -1;
-  else if (type == 1)
-  {
-    myproc()->type = IOBOUND;
-  }
-  else if (type == 2)
-  {
-    myproc()->type = CPUBOUND;
-  }
-  else
-  {
-    myproc()->type = SBOUND;
-  }
-
-  return 0;
-}
-
-int
 sys_wait2(void)
 {
   int *retime, *rutime, *stime;
 
-  if(argptr(0, (void*)&retime, 2*sizeof(retime[0])) < 0)
+  if(argptr(0, (void*)&retime, sizeof(retime)) < 0)
+    return -1;  
+
+  if(argptr(1, (void*)&rutime, sizeof(rutime)) < 0)
     return -1;
 
-  if(argptr(0, (void*)&rutime, 2*sizeof(rutime[0])) < 0)
+  if(argptr(2, (void*)&stime, sizeof(stime)) < 0)
     return -1;
 
-  if(argptr(0, (void*)&stime, 2*sizeof(stime[0])) < 0)
-    return -1;
-
-
-  wait2(retime, rutime, stime);
-
-  return 0;
+  return wait2(retime, rutime, stime);;
 }

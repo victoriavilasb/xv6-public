@@ -14,7 +14,11 @@ extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
 
-void hold_process_based_on_type(struct proc *p);
+struct spinlock smallerlock;
+int count_quantum_for_smaller_process = 0; // max 10
+struct spinlock greaterlock;
+int count_quantum_for_greater_process = 0; // max 2
+void choose_process_type_to_sched(void);
 
 void
 tvinit(void)
@@ -50,6 +54,8 @@ trap(struct trapframe *tf)
 
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
+    sum_states_in_each_proc();
+    choose_process_type_to_sched();
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
@@ -103,43 +109,43 @@ trap(struct trapframe *tf)
     exit();
   }
 
-
   // Force process to give up CPU on clock tick.
   // If interrupts were on while locks held, would need to check nlock.
   if(myproc() && myproc()->state == RUNNING &&
      tf->trapno == T_IRQ0+IRQ_TIMER) {
 
-    hold_process_based_on_type(myproc());
+    myproc()->rutime++;
+    if (ticks % INTERV == 0)
+      yield();
   }
 
   // Check if the process has been killed since we yielded
   if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER) {  
     exit();
   }
+
 }
 
-void 
-hold_process_based_on_type(struct proc *p) {
-  switch (p->type)
-  {
-  case CPUBOUND:
-    if (ticks % 5 == 0) // always interrupted after n tickets
-      yield();
-    break;
+void
+choose_process_type_to_sched(void)
+{
+  int p = get_priority();
 
-  case IOBOUND:
-    if (ticks % 3 == 0)
-      yield();
-    break;
+  if (p == 0) {
+    count_quantum_for_smaller_process++;
+  } else {
+    count_quantum_for_greater_process++;
+  }
 
-  case SBOUND:
-    if (ticks % 4 == 0)
-      yield();
-    break;
-  
-  default:
-    if (ticks % INTERV == 0)
-      yield();
-    break;
+  if (count_quantum_for_greater_process > 2) {
+    count_quantum_for_greater_process = 0;
+    sched_smaller_process();
+  }
+
+  if (count_quantum_for_smaller_process > 10) {
+    count_quantum_for_smaller_process = 0;
+    sched_greater_process();
   }
 }
+
+
