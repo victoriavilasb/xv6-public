@@ -11,7 +11,7 @@ main(int argc, char *argv[])
   int t_iobound = 0, tretime_iobound = 0, tstime_iobound = 0, tturnaround_iobound = 0;
   int t_scpu = 0, tretime_scpu = 0, tstime_scpu = 0, tturnaround_scpu = 0;
   int t_cpubound = 0, tretime_cpubound = 0, tstime_cpubound = 0, tturnaround_cpubound = 0;
-  int cpu_bound_loop = 10000000;
+  int cpu_bound_loop = 1000000000;
   int s_bound_loop = 1000000;
   int r;
 
@@ -28,17 +28,17 @@ main(int argc, char *argv[])
       r = getpid() % 3;
 
       if (r == 0) {
-        for (int i = 0; i < 100; i ++) {
-          for (int i = 0; i < cpu_bound_loop; i++){}
+        for (int j = 0; j < 100; j++) {
+          for (int k = 0; k < cpu_bound_loop; k++){}
         }
       }
       else if (r == 1) {
-        for (int i = 0; i < 100; i ++) {
-          for (int i = 0; i < s_bound_loop; i++){}
+        for (int j = 0; j < 100; j++) {
+          for (int k = 0; k < s_bound_loop; k++){}
           yield();
         }
       } else if (r == 2) {
-        for (int i = 0; i < 100; i++) {
+        for (int j = 0; j < 100; j++) {
           sleep(1);
         }
       }
@@ -49,32 +49,34 @@ main(int argc, char *argv[])
     continue;
   }
 
+  printf(1, "\n### START\n");
   for (int i = 0; i< 3*n; i++) {
     pid = wait2(&retime, &rutime, &stime); // PROCURO POR PROCESSOS ZOMBIE
 
     r = pid % 3;
     if (r % 3 == 0) {
-      printf(1, "CPU-BOUND: pid = %d, waiting time = %d, borst time = %d, io time = %d\n", pid, retime+stime, rutime, stime);
+      printf(1, "{\"type\": \"CPU-BOUND\", \"pid\": %d, \"waiting_time\": %d, \"borst_time\": %d, \"io_time\": %d}\n", pid, retime+stime, rutime, stime);
       t_cpubound += 1;
       tretime_cpubound += retime;
       tstime_cpubound += stime;
       tturnaround_cpubound += retime+stime+rutime;
     }
     else if (r % 3 == 2) {
-      printf(1, "IO-BOUND: pid = %d, waiting time = %d, borst time = %d, io time = %d\n", pid, retime+stime, rutime, stime);
+      printf(1, "{\"type\": \"IO-BOUND\", \"pid\": %d, \"waiting_time\": %d, \"borst_time\": %d, \"io_time\": %d}\n", pid, retime+stime, rutime, stime);
       t_iobound += 1;
       tretime_iobound += retime;
       tstime_iobound += stime;
       tturnaround_iobound += retime+stime+rutime;
     }
     else if (r % 3 == 1) {
-      printf(1, "S-CPU: pid = %d, waiting time = %d, borst time = %d, io time = %d\n", pid, retime+stime, rutime, stime);
+      printf(1, "{\"type\": \"S-CPU\", \"pid\": %d, \"waiting_time\": %d, \"borst_time\": %d, \"io_time\": %d}\n", pid, retime+stime, rutime, stime);
       t_scpu += 1;
       tretime_scpu += retime;
       tstime_scpu += stime;
       tturnaround_scpu += retime+stime+rutime;
     }
   }
+  printf(1, "### END\n");
 
 
   printf(1, "\n\n");

@@ -771,6 +771,8 @@ sum_states_in_each_proc()
       case SLEEPING:
         p->stime += 1;
         break;
+      case RUNNING:
+        p->rutime += 1;
       default:
         continue;
       }
