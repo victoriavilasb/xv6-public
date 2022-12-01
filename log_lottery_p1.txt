@@ -1,0 +1,84 @@
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o sanity.o sanity.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _sanity sanity.o ulib.o usys.o printf.o umalloc.o
+objdump -S _sanity > sanity.asm
+objdump -t _sanity | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > sanity.sym
+./mkfs fs.img README _cat _echo _forktest _grep _init _kill _ln _ls _mkdir _rm _sh _stressfs _usertests _wc _zombie _sanity 
+nmeta 59 (boot, super, log blocks 30 inode blocks 26, bitmap blocks 1) blocks 941 total 1000
+balloc: first 709 blocks have been allocated
+balloc: write bitmap block at sector 58
+qemu-system-i386 -serial mon:stdio -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp 2 -m 512 
+xv6...
+cpu1: starting 1
+### SCHEDULER: lotterycpu0: starting 0
+### SCHEDULER: lotterysb: size 1000 nblocks 941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ sanitu 10    y 10
+
+### START RESULTS
+	### IGNORE LINE -1404227328
+{"type": "S-CPU", "pid": 4, "waiting_time": 253, "borst_time": 13, "io_time": 0}
+ ### IGNORE LINE 0
+{"type": "IO-BOUND", "pid": 5, "waiting_time": 475, "borst_time": 0, "io_time": 200}
+### IGNORE LINE -1404227328
+{"type": "S-CPU", "pid": 7, "waiting_time": 415, "borst_time": 7, "io_time": 0}
+### IGNORE LINE -1404227328
+{"type": "S-CPU", "pid": 22, "waiting_time": 420, "borst_time": 1, "io_time": 0}
+### IGNORE LINE -1404227328
+{"type": "S-CPU", "pid": 13, "waiting_time": 465, "borst_time": 7, "io_time": 0}### IGNORE LINE -1404227328
+### IGNORE LINE -1404227328
+
+{"type": "S-CPU", "pid": 25, "waiting_time": 464, "borst_time": 2, "io_time": 0}
+### IGNORE LINE -1404227328
+{"type": "S-CPU", "pid": 10, "waiting_time": 490, "borst_time": 4, "io_time": 1}
+{"type": "S-CPU", "pid": 31, "waiting_time": 445, "borst_time": 3, "io_time": 0}
+### IGNORE LINE 0
+{"type": "IO-BOUND", "pid": 20, "waiting_time": 598, "borst_time": 1, "io_time": 200}
+### IGNORE LINE 0
+{"type": "IO-BOUND", "pid": 23, "waiting_time": 594, "borst_time": 1### IGNORE LINE 0
+, "io_time": 200}
+### IGNORE LINE 0
+### IGNORE LINE 0
+{"type": "IO-BOUND", "pid": 14, "waiting_time": 625, "borst_time": 2, "io_time": 200}
+{"type": "IO-BOUND", "pid": 11, "waiting_time": 633, "borst_time": 0, "io### IGNORE LINE -1404227328
+### IGNORE LINE 0
+_time": 200}
+{"type": "IO-BOUND", "pid": 17, "waiting_time": 644, "borst_time": 0, "### IGNORE LINE 0
+io_time": 202}
+### IGNORE LINE -1404227328
+### IGNORE LINE 0
+{"type": "IO-BOUND", "pid": 8, "waiting_time": 659, "borst_time": 0, "io_time": 200}
+### IGNORE LINE -1404227328
+{"type": "S-CPU", "pid": 16, "waiting_time": 558, "borst_time": 6, "io_time": 0}
+{"type": "S-CPU", "pid": 19, "waiting_time": 542, "borst_time": 6, "io_time": 0}
+{"type": "IO-BOUND", "pid": 26, "waiting_time": 633, "borst_time": 0, "io_time": 200}
+{"type": "S-CPU", "pid": 28, "waiting_time": 512, "borst_time": 6, "io_time": 1}
+{"type": "IO-BOUND", "pid": 32, "waiting_time": 589, "borst_time": 0, "io_time": 200}
+### IGNORE LINE 0
+{"type": "IO-BOUND", "pid": 29, "waiting_time": 661, "borst_time": 0, "io_time": 200}
+### IGNORE LINE -1602147840
+{"type": "CPU-BOUND", "pid": 6, "waiting_time": 677, "borst_time": 250, "io_time": 0}
+### IGNORE LINE -1602147840
+{"type": "CPU-BOUND", "pid": 9, "waiting_time": 761, "borst_time": 228, "io_time": 0}
+### IGNORE LINE -1602147840
+{"type": "CPU-BOUND", "pid": 12, "waiting_time": 791, "borst_time": 232, "io_time": 0}
+### IGNORE LINE -1602147840
+{"type": "CPU-BOUND", "pid": 15, "waiting_time": 806, "borst_time": 223, "io_time": 0}
+### IGNORE LINE -1602147840
+{"type": "CPU-BOUND", "pid": 21, "waiting_time": 810, "borst_time": 225, "io_time": 0}
+### IGNORE LINE -1602147840
+{"type": "CPU-BOUND", "pid": 24, "waiting_time": 816, "borst_time": 234, "io_time": 0}
+### IGNORE LINE -1602147840
+{"type": "CPU-BOUND", "pid": 30, "waiting_time": 825, "borst_time": 217, "io_time": 0}
+### IGNORE LINE -1602147840
+{"type": "CPU-BOUND", "pid": 18, "waiting_time": 847, "borst_time": 233, "io_time": 0}
+### IGNORE LINE -1602147840
+{"type": "CPU-BOUND", "pid": 27, "waiting_time": 844, "borst_time": 225, "io_time": 0}
+### IGNORE LINE -1602147840
+{"type": "CPU-BOUND", "pid": 33, "waiting_time": 1045, "borst_time": 212, "io_time": 0}
+### END RESULTS
+
+
+IO-BOUND: sleeping = 200, ready = 410, turnaround = 611
+CPU-BOUND: sleeping = 0, ready = 822, turnaround = 1050
+S-CPU: sleeping = 0, ready = 456, turnaround = 461
+$ 

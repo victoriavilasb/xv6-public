@@ -11,9 +11,10 @@ main(int argc, char *argv[])
   int t_iobound = 0, tretime_iobound = 0, tstime_iobound = 0, tturnaround_iobound = 0;
   int t_scpu = 0, tretime_scpu = 0, tstime_scpu = 0, tturnaround_scpu = 0;
   int t_cpubound = 0, tretime_cpubound = 0, tstime_cpubound = 0, tturnaround_cpubound = 0;
-  int cpu_bound_loop = 1000000000;
+  int cpu_bound_loop = 10000000;
   int s_bound_loop = 1000000;
   int r;
+  int counter = 0;
 
   if(argc < 2){
     printf(2, "Usage: pass the number of process to be created...\n");
@@ -29,12 +30,16 @@ main(int argc, char *argv[])
 
       if (r == 0) {
         for (int j = 0; j < 100; j++) {
-          for (int k = 0; k < cpu_bound_loop; k++){}
+          for (int k = 0; k < cpu_bound_loop; k++){
+            counter += j+k;
+          }
         }
       }
       else if (r == 1) {
         for (int j = 0; j < 100; j++) {
-          for (int k = 0; k < s_bound_loop; k++){}
+          for (int k = 0; k < s_bound_loop; k++){
+            counter += j+k;
+          }
           yield();
         }
       } else if (r == 2) {
@@ -43,13 +48,15 @@ main(int argc, char *argv[])
         }
       }
 
+      printf(1, "### IGNORE LINE %d\n", counter);
+
       exit(); // todos os processos exit vão entrar no estado ZOMBIE
     } 
 
     continue;
   }
 
-  printf(1, "\n### START\n");
+  printf(1, "\n### START RESULTS\n");
   for (int i = 0; i< 3*n; i++) {
     pid = wait2(&retime, &rutime, &stime); // PROCURO POR PROCESSOS ZOMBIE
 
@@ -76,7 +83,7 @@ main(int argc, char *argv[])
       tturnaround_scpu += retime+stime+rutime;
     }
   }
-  printf(1, "### END\n");
+  printf(1, "### END RESULTS\n");
 
 
   printf(1, "\n\n");
@@ -89,6 +96,7 @@ main(int argc, char *argv[])
   if (t_scpu > 0) {
     printf(1, "S-CPU: sleeping = %d, ready = %d, turnaround = %d\n", tstime_scpu/t_scpu, tretime_scpu/t_scpu, tturnaround_scpu/t_scpu);
   }
+
 
   exit();
 }
