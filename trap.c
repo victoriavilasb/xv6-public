@@ -54,11 +54,11 @@ trap(struct trapframe *tf)
 
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
-    sum_states_in_each_proc();
     choose_process_type_to_sched();
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
+      sum_states_in_each_proc();
       wakeup(&ticks);
       release(&tickslock);
     }
@@ -114,7 +114,6 @@ trap(struct trapframe *tf)
   if(myproc() && myproc()->state == RUNNING &&
      tf->trapno == T_IRQ0+IRQ_TIMER) {
 
-    myproc()->rutime++;
     if (ticks % INTERV == 0)
       yield();
   }

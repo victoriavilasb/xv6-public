@@ -395,6 +395,8 @@ rr_scheduler(void)
   struct cpu *c = mycpu();
   c->proc = 0;
   
+  cprintf("### SCHEDULER: rr");
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
@@ -435,6 +437,8 @@ custom_scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
+
+  cprintf("### SCHEDULER: custom");
   
   for(;;){
     // Enable interrupts on this processor.
@@ -470,6 +474,7 @@ custom_scheduler(void)
 void
 lottery_scheduler(void)
 {  
+  cprintf("### SCHEDULER: lottery");
   struct proc *p = ptable.proc;
   struct cpu *c = mycpu();
   c->proc = 0;
@@ -771,6 +776,8 @@ sum_states_in_each_proc()
       case SLEEPING:
         p->stime += 1;
         break;
+      case RUNNING:
+        p->rutime += 1;
       default:
         continue;
       }
